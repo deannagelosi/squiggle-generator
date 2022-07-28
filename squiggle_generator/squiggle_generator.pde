@@ -23,11 +23,12 @@ int squiggleLength;
 String[] points = {};
 
 void setup() {
-  // w:352, h:408; // 11"x8.5" at 96 DPI split into 2 rows, 3 columns
   // w:1056, h:816; // 11"x8.5" at 96 DPI.
+  // w:432, h:288; // 4.5x3" 2x2 grid with 1" margins on a 12x9"
+  // w:352, h:408; // 11"x8.5" at 96 DPI split into 2 rows, 3 columns
   // size(w,h)
-  size(352, 408); 
-  
+  size(432, 288);
+
   fileIndex = 1;
   series = (int)random(1000);
 
@@ -39,7 +40,6 @@ void setup() {
   scale = 100.0; // position on the Perlin noise field
   maxTurn = QUARTER_PI + PI/8; // Don't turn faster than this (Quarter = circles, Half = squares, PI = starbursts)
   bigThreshold = 0.80; // Higher percent, more loops
-
 }
 
 void draw() {
