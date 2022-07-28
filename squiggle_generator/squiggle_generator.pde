@@ -24,7 +24,8 @@ void setup() {
   canvasW = 352;
   // int canvasH = 1056; // Letter: 11"x8.5" at 96 DPI.
   // int canvasW = 816;
-  size(408, 352);
+  // size(w,h)
+  size(352, 408); // 408, 816 double high
   fileIndex = 1;
   series = (int)random(1000);
 
