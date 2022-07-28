@@ -1,6 +1,17 @@
 // Squiggle Generator
 // "Take a Dot for a Walk"
 
+
+// move draw line code into its own function
+// - first, generate all points
+// - then draw the line
+// switch for loop to use length instead of steps
+// make draw "reload", "draw", "reload, "draw"
+// one color
+
+// save the points and angles, export them to a text file
+// work on addative code later, using those saved points
+
 import processing.svg.*;
 
 String mode; // additive (add) or subtractive (sub) painting
@@ -20,12 +31,17 @@ int buffer;
 int squiggleLength;
 
 void setup() {
-  canvasH = 408; // 3x2 grid on an 11x8.5" piece of paper at 96 DPI
-  canvasW = 352;
+  canvasW = 408; // 3x2 grid on an 11x8.5" piece of paper at 96 DPI
+  canvasH = 352;
   // int canvasH = 1056; // Letter: 11"x8.5" at 96 DPI.
   // int canvasW = 816;
   // size(w,h)
-  size(352, 408); // 408, 816 double high
+  size(352, 816); // 408, 816 double high
+  // To include the paint stops:
+  // 1. double the size() height 
+  // 2. change starting center to height/4
+  // 3. check bounds, divide the height by 2
+  
   fileIndex = 1;
   series = (int)random(1000);
 
@@ -51,7 +67,7 @@ void draw() {
 
   // Start in center, angled up
   centerX = width/2; // center
-  centerY = height/2; // center
+  centerY = height/4; // center (2 for normal canvas, 4 for double high)
   px = centerX;
   py = centerY;
   angle = HALF_PI; // Up
@@ -159,7 +175,7 @@ void reloadPaint(int sign) {
 }
 
 boolean checkBounds(float px, float py) {
-  if (px >= width-buffer || px <= buffer || py >= height-buffer || py <= buffer) {
+  if (px >= width-buffer || px <= buffer || py >= height/2-buffer || py <= buffer) { // add /2 for double high canvas
     return false;
   } else {
     return true;
