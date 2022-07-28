@@ -16,6 +16,8 @@ int numSteps;
 int reload;
 int canvasH, canvasW;
 int centerX, centerY;
+int buffer;
+int lengthCompleted;
 String filename;
 
 void setup() {
@@ -29,19 +31,24 @@ void setup() {
 
   // Tweak to change the look of the line
   numSteps = 80;
-  reload = 20;
-  scale = 100.0;
   minStep = 20;
   maxStep = 100;
+
+  buffer = 35;
+  scale = 100.0; // position on the Perlin noise field
   maxTurn = QUARTER_PI + PI/8; // Don't turn faster than this (Quarter = circles, Half = squares, PI = starbursts)
   bigThreshold = 0.80; // Higher percent, more loops
   mode = "add"; // add or sub
+
+  reload = 5;
 }
 
 void draw() {
   noiseSeed(millis());
   background(255);
   //showField();
+  
+  lengthCompleted = 0;
 
   // Start in center, angled up
   centerX = width/2; // center
@@ -101,12 +108,14 @@ void draw() {
     }
 
     if (checkBounds(px, py)) {
+      lengthCompleted += step;
       curveVertex(px, py);
     } else {
       // Was unable to fix the out of bounds in the number of loops
       break;
     }
   }
+  println("Line length: " + lengthCompleted);
   endShape();
   endRecord();
   noLoop();
@@ -114,32 +123,30 @@ void draw() {
   // If good result, increment the filename counter to protect from overwrite
   // If bad result, make another attempt and then overwrite the bad file
   float percentBig = numBigTurns / (numBigTurns + numSmallTurns);
-  if (percentBig > bigThreshold) {
+  if (percentBig > bigThreshold || lengthCompleted < 1500 || lengthCompleted > 3000) {
     println("bad art, trying again...");
     loop();
   } else {
     // good art
-    //fileIndex++;
   }
 }
 
 void reloadPaint(int count) {
   if (count >= reload) {
     int paintX = centerX;
-    int paintY = centerY - canvasH;
+    int paintY = centerY + canvasH;
     // ellipse(a, b, c, d)  a/b are center, c/d are diameter
     noFill();
     for (int i = 0; i < 3; i++) {
       ellipse(paintX, paintY, 10, 10);
     }
     int dabX = centerX;
-    int dabY = paintY + canvasH/4;
+    int dabY = paintY - canvasH/4;
     point(dabX, dabY);
   }
 }
 
 boolean checkBounds(float px, float py) {
-  int buffer = 50;
   if (px >= width-buffer || px <= buffer || py >= height-buffer || py <= buffer) {
     return false;
   } else {
