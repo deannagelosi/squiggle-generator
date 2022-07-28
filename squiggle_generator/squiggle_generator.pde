@@ -3,6 +3,7 @@
 
 import processing.svg.*;
 
+String mode; // additive (add) or subtractive (sub) painting
 float px, py, angle;
 float maxTurn;
 float scale;
@@ -11,20 +12,30 @@ float numBigTurns, numSmallTurns;
 float bigThreshold;
 int fileIndex;
 int series;
-int numPoints;
+int numSteps;
+int reload;
+int canvasH, canvasW;
+int centerX, centerY;
+String filename;
 
 void setup() {
-  size(1056, 816); // Letter: 11"x8.5" at 96 DPI.
+  canvasH = 408; // 3x2 grid on an 11x8.5" piece of paper at 96 DPI
+  canvasW = 352;
+  // int canvasH = 1056; // Letter: 11"x8.5" at 96 DPI.
+  // int canvasW = 816;
+  size(408, 352);
   fileIndex = 1;
   series = (int)random(1000);
 
   // Tweak to change the look of the line
-  numPoints = 80;
+  numSteps = 80;
+  reload = 20;
   scale = 100.0;
   minStep = 20;
   maxStep = 100;
   maxTurn = QUARTER_PI + PI/8; // Don't turn faster than this (Quarter = circles, Half = squares, PI = starbursts)
   bigThreshold = 0.80; // Higher percent, more loops
+  mode = "add"; // add or sub
 }
 
 void draw() {
@@ -33,14 +44,16 @@ void draw() {
   //showField();
 
   // Start in center, angled up
-  px = width/2; // center
-  py = height/2; // center
+  centerX = width/2; // center
+  centerY = height/2; // center
+  px = centerX;
+  py = centerY;
   angle = HALF_PI; // Up
 
   numBigTurns = 0;
   numSmallTurns = 0;
 
-  String filename = "generated/squiggle-" + series + "-" + fileIndex + ".svg";
+  filename = "generated/squiggle-" + series + "-" + fileIndex + ".svg";
   beginRecord(SVG, filename);
   noFill();
   stroke(0, 0, 0);
@@ -50,7 +63,12 @@ void draw() {
   curveVertex(px, py);
   curveVertex(px, py);
 
-  for (int i = 0; i < numPoints; i++) {
+  // Lays down points of a line
+  for (int i = 0; i < numSteps; i++) {
+    if (mode == "add") {
+      reloadPaint(i);
+    }
+
     float pNoise = noise(px/scale, py/scale); //0..1
 
     float deltaAngle = map(pNoise, 0, 1, -TWO_PI, TWO_PI);
@@ -102,6 +120,21 @@ void draw() {
   } else {
     // good art
     //fileIndex++;
+  }
+}
+
+void reloadPaint(int count) {
+  if (count >= reload) {
+    int paintX = centerX;
+    int paintY = centerY - canvasH;
+    // ellipse(a, b, c, d)  a/b are center, c/d are diameter
+    noFill();
+    for (int i = 0; i < 3; i++) {
+      ellipse(paintX, paintY, 10, 10);
+    }
+    int dabX = centerX;
+    int dabY = paintY + canvasH/4;
+    point(dabX, dabY);
   }
 }
 
