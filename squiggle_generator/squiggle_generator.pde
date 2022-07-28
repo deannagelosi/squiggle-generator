@@ -17,8 +17,7 @@ int reload;
 int canvasH, canvasW;
 int centerX, centerY;
 int buffer;
-int lengthCompleted;
-String filename;
+int squiggleLength;
 
 void setup() {
   canvasH = 408; // 3x2 grid on an 11x8.5" piece of paper at 96 DPI
@@ -38,8 +37,6 @@ void setup() {
   scale = 100.0; // position on the Perlin noise field
   maxTurn = QUARTER_PI + PI/8; // Don't turn faster than this (Quarter = circles, Half = squares, PI = starbursts)
   bigThreshold = 0.80; // Higher percent, more loops
-  mode = "add"; // add or sub
-
   reload = 5;
 }
 
@@ -47,8 +44,9 @@ void draw() {
   noiseSeed(millis());
   background(255);
   //showField();
-  
-  lengthCompleted = 0;
+
+  mode = "add"; // add or sub
+  squiggleLength = 0;
 
   // Start in center, angled up
   centerX = width/2; // center
@@ -60,11 +58,13 @@ void draw() {
   numBigTurns = 0;
   numSmallTurns = 0;
 
-  filename = "generated/squiggle-" + series + "-" + fileIndex + ".svg";
+  String filename = "generated/squiggle-" + series + "-" + fileIndex + ".svg";
   beginRecord(SVG, filename);
   noFill();
   stroke(0, 0, 0);
   strokeWeight(2);
+
+  reloadPaint(-1); // Get some paint. -1 for left, 1 for right
 
   beginShape();
   curveVertex(px, py);
@@ -72,8 +72,18 @@ void draw() {
 
   // Lays down points of a line
   for (int i = 0; i < numSteps; i++) {
-    if (mode == "add") {
-      reloadPaint(i);
+
+    if (mode == "add" && squiggleLength > 1000) {
+      // Pause the line, get more paint
+      curveVertex(px, py);
+      endShape();
+      
+      reloadPaint(1); // -1 for left, 1 for right
+      mode = "sub"; // Only call reload paint once
+      
+      beginShape();
+      curveVertex(px, py); // Resume with end point of paused line
+      curveVertex(px, py);
     }
 
     float pNoise = noise(px/scale, py/scale); //0..1
@@ -108,14 +118,14 @@ void draw() {
     }
 
     if (checkBounds(px, py)) {
-      lengthCompleted += step;
+      squiggleLength += step;
       curveVertex(px, py);
     } else {
       // Was unable to fix the out of bounds in the number of loops
       break;
     }
   }
-  println("Line length: " + lengthCompleted);
+  println("Line length: " + squiggleLength);
   endShape();
   endRecord();
   noLoop();
@@ -123,7 +133,7 @@ void draw() {
   // If good result, increment the filename counter to protect from overwrite
   // If bad result, make another attempt and then overwrite the bad file
   float percentBig = numBigTurns / (numBigTurns + numSmallTurns);
-  if (percentBig > bigThreshold || lengthCompleted < 1500 || lengthCompleted > 3000) {
+  if (percentBig > bigThreshold || squiggleLength < 1500 || squiggleLength > 3000) {
     println("bad art, trying again...");
     loop();
   } else {
@@ -131,19 +141,20 @@ void draw() {
   }
 }
 
-void reloadPaint(int count) {
-  if (count >= reload) {
-    int paintX = centerX;
-    int paintY = centerY + canvasH;
-    // ellipse(a, b, c, d)  a/b are center, c/d are diameter
-    noFill();
-    for (int i = 0; i < 3; i++) {
-      ellipse(paintX, paintY, 10, 10);
-    }
-    int dabX = centerX;
-    int dabY = paintY - canvasH/4;
-    point(dabX, dabY);
+void reloadPaint(int sign) {
+  // Circle where the extra pain is located
+  int paintX = centerX + canvasW/4 * sign;
+  int paintY = centerY + canvasH;
+  // ellipse(a, b, c, d)  a/b are center, c/d are diameter
+  noFill();
+  for (int i = 0; i < 3; i++) {
+    ellipse(paintX, paintY, 10, 10);
   }
+
+  // Dab excess paint off
+  int dabX = centerX + canvasW/4 * sign;
+  int dabY = paintY - canvasH/4;
+  point(dabX, dabY);
 }
 
 boolean checkBounds(float px, float py) {
