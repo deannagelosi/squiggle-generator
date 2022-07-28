@@ -1,20 +1,11 @@
 // Squiggle Generator
 // "Take a Dot for a Walk"
 
-
-// move draw line code into its own function
-// - first, generate all points
-// - then draw the line
-// switch for loop to use length instead of steps
-// make draw "reload", "draw", "reload, "draw"
-// one color
-
 // save the points and angles, export them to a text file
 // work on addative code later, using those saved points
 
 import processing.svg.*;
 
-String mode; // additive (add) or subtractive (sub) painting
 float px, py, angle;
 float maxTurn;
 float scale;
@@ -29,18 +20,13 @@ int canvasH, canvasW;
 int centerX, centerY;
 int buffer;
 int squiggleLength;
+String[] points = {};
 
 void setup() {
-  canvasW = 408; // 3x2 grid on an 11x8.5" piece of paper at 96 DPI
-  canvasH = 352;
-  // int canvasH = 1056; // Letter: 11"x8.5" at 96 DPI.
-  // int canvasW = 816;
+  // w:352, h:408; // 11"x8.5" at 96 DPI split into 2 rows, 3 columns
+  // w:1056, h:816; // 11"x8.5" at 96 DPI.
   // size(w,h)
-  size(352, 816); // 408, 816 double high
-  // To include the paint stops:
-  // 1. double the size() height 
-  // 2. change starting center to height/4
-  // 3. check bounds, divide the height by 2
+  size(352, 408); 
   
   fileIndex = 1;
   series = (int)random(1000);
@@ -49,12 +35,11 @@ void setup() {
   numSteps = 80;
   minStep = 20;
   maxStep = 100;
-
   buffer = 35;
   scale = 100.0; // position on the Perlin noise field
   maxTurn = QUARTER_PI + PI/8; // Don't turn faster than this (Quarter = circles, Half = squares, PI = starbursts)
   bigThreshold = 0.80; // Higher percent, more loops
-  reload = 5;
+
 }
 
 void draw() {
@@ -62,12 +47,11 @@ void draw() {
   background(255);
   //showField();
 
-  mode = "add"; // add or sub
   squiggleLength = 0;
 
   // Start in center, angled up
   centerX = width/2; // center
-  centerY = height/4; // center (2 for normal canvas, 4 for double high)
+  centerY = height/2; // center
   px = centerX;
   py = centerY;
   angle = HALF_PI; // Up
@@ -81,27 +65,14 @@ void draw() {
   stroke(0, 0, 0);
   strokeWeight(2);
 
-  reloadPaint(-1); // Get some paint. -1 for left, 1 for right
-
   beginShape();
   curveVertex(px, py);
   curveVertex(px, py);
+  points = append(points, "px: " + px + ", py: " + py);
+  points = append(points, "px: " + px + ", py: " + py);
 
   // Lays down points of a line
   for (int i = 0; i < numSteps; i++) {
-
-    if (mode == "add" && squiggleLength > 1000) {
-      // Pause the line, get more paint
-      curveVertex(px, py);
-      endShape();
-      
-      reloadPaint(1); // -1 for left, 1 for right
-      mode = "sub"; // Only call reload paint once
-      
-      beginShape();
-      curveVertex(px, py); // Resume with end point of paused line
-      curveVertex(px, py);
-    }
 
     float pNoise = noise(px/scale, py/scale); //0..1
 
@@ -137,14 +108,16 @@ void draw() {
     if (checkBounds(px, py)) {
       squiggleLength += step;
       curveVertex(px, py);
+      points = append(points, "px: " + px + ", py: " + py);
     } else {
-      // Was unable to fix the out of bounds in the number of loops
+      // Unable to fix out of bounds in number of loops, end line
       break;
     }
   }
-  println("Line length: " + squiggleLength);
+  // println("Line length: " + squiggleLength);
   endShape();
   endRecord();
+  saveStrings("generated/points-" + series + "-" + fileIndex + ".txt", points);
   noLoop();
 
   // If good result, increment the filename counter to protect from overwrite
@@ -158,24 +131,8 @@ void draw() {
   }
 }
 
-void reloadPaint(int sign) {
-  // Circle where the extra pain is located
-  int paintX = centerX + canvasW/4 * sign;
-  int paintY = centerY + canvasH;
-  // ellipse(a, b, c, d)  a/b are center, c/d are diameter
-  noFill();
-  for (int i = 0; i < 3; i++) {
-    ellipse(paintX, paintY, 10, 10);
-  }
-
-  // Dab excess paint off
-  int dabX = centerX + canvasW/4 * sign;
-  int dabY = paintY - canvasH/4;
-  point(dabX, dabY);
-}
-
 boolean checkBounds(float px, float py) {
-  if (px >= width-buffer || px <= buffer || py >= height/2-buffer || py <= buffer) { // add /2 for double high canvas
+  if (px >= width-buffer || px <= buffer || py >= height-buffer || py <= buffer) {
     return false;
   } else {
     return true;
