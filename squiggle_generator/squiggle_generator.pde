@@ -12,6 +12,7 @@
 //   - insert our parsed data into function from step 3
 // 5) update our reload function if needed
 // - (skip) clean up unused global variables
+// calculate length based on points
 
 import processing.svg.*;
 
@@ -21,6 +22,7 @@ float scale;
 float minStep, maxStep;
 float numBigTurns, numSmallTurns;
 float bigThreshold;
+float[][] pointsData = {{}};
 int fileIndex;
 int series;
 int numSteps;
@@ -60,6 +62,11 @@ void draw() {
   numBigTurns = 0;
   numSmallTurns = 0;
 
+  beginRecord(SVG, filename);
+  noFill();
+  stroke(0, 0, 0);
+  strokeWeight(2);
+
   // Start in center, angled up
   centerX = width/2; // center
   centerY = height/2; // center
@@ -67,23 +74,23 @@ void draw() {
   py = centerY;
   angle = HALF_PI; // Up
 
+  endRecord();
+  noLoop();
+}
 
+void drawSquiggles(float[][] points) {
+  beginShape();
+  curveVertex(points[0][0], points[0][1]);
   
+  for (int i = 0; i < points.length; i++){
+    curveVertex(points[i][0], points[i][1]);
+  }
+  
+  curveVertex(points[points.length-1][0], points[points.length-1][1]);
+  endShape();
 }
 
 void generateSquigglePoints() {
-  beginRecord(SVG, filename);
-  noFill();
-  stroke(0, 0, 0);
-  strokeWeight(2);
-
-  beginShape();
-  curveVertex(px, py);
-  curveVertex(px, py);
-  points = append(points, "px: " + px + ", py: " + py);
-  points = append(points, "px: " + px + ", py: " + py);
-
-  // Lays down points of a line
   for (int i = 0; i < numSteps; i++) {
 
     float pNoise = noise(px/scale, py/scale); //0..1
@@ -119,27 +126,21 @@ void generateSquigglePoints() {
 
     if (checkBounds(px, py)) {
       squiggleLength += step;
-      curveVertex(px, py);
-      points = append(points, "px: " + px + ", py: " + py);
     } else {
       // Unable to fix out of bounds in number of loops, end line
       break;
     }
   }
-  // println("Line length: " + squiggleLength);
-  endShape();
-  endRecord();
-  saveStrings("generated/points-" + series + "-" + fileIndex + ".txt", points);
-  noLoop();
 
   // If good result, increment the filename counter to protect from overwrite
   // If bad result, make another attempt and then overwrite the bad file
   float percentBig = numBigTurns / (numBigTurns + numSmallTurns);
   if (percentBig > bigThreshold || squiggleLength < 1500 || squiggleLength > 3000) {
     println("bad art, trying again...");
-    loop();
+    //loop(); to do:  new way to try again
   } else {
     // good art
+    // to do: return the points 2D array that you have been creating
   }
 }
 
