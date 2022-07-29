@@ -12,6 +12,9 @@
 //   - insert our parsed data into function from step 3
 // 5) update our reload function if needed
 // - (skip) clean up unused global variables
+// 6) (skip) function that outputs points to text for parser
+//    - `points = append(points, "px: " + px + ", py: " + py);`
+//    - `saveStrings("generated/points-" + series + "-" + fileIndex + ".txt", points);`
 // calculate length based on points
 
 import processing.svg.*;
@@ -22,13 +25,14 @@ float scale;
 float minStep, maxStep;
 float numBigTurns, numSmallTurns;
 float bigThreshold;
-float[][] pointsData = {{}};
+Point[] allPoints = new Point[0];
 int fileIndex;
 int series;
-int numSteps;
+int maxSteps;
 int centerX, centerY;
 int buffer;
 int squiggleLength;
+int reloadPause;
 String[] points = {};
 String filename;
 
@@ -39,11 +43,14 @@ void setup() {
   // size(w,h)
   size(432, 288);
 
+  centerX = width/2; // center
+  centerY = height/2; // center
   fileIndex = 1;
   series = (int)random(1000);
 
   // Tweak to change the look of the line
-  numSteps = 80;
+  reloadPause = 30;
+  maxSteps = 80;
   minStep = 20;
   maxStep = 100;
   buffer = 35;
@@ -58,6 +65,7 @@ void draw() {
   background(255);
   //showField();
 
+  // Reset Bad Art Check params
   squiggleLength = 0;
   numBigTurns = 0;
   numSmallTurns = 0;
@@ -68,30 +76,80 @@ void draw() {
   strokeWeight(2);
 
   // Start in center, angled up
-  centerX = width/2; // center
-  centerY = height/2; // center
-  px = centerX;
-  py = centerY;
-  angle = HALF_PI; // Up
+  //px = centerX;
+  //py = centerY;
+  //angle = HALF_PI; // Up
 
+  allPoints = parsePointFile("points-wacky-only.txt");
+  
+  println(allPoints.length);
+  
+  //int sliceSize = 9;
+  //int[] sliceStart = {
+  //  sliceSize * 0,
+  //  sliceSize * 1,
+  //  sliceSize * 2,
+  //  sliceSize * 3
+  //};
+
+  //drawSquiggles(allPoints);
+
+  reloadPaint();
+  drawSquiggles((Point[])subset(allPoints, 0, 10)); // 0 + 10 = 10
+
+  reloadPaint();
+  drawSquiggles((Point[])subset(allPoints, 10 - 3, 10)); // 10 - 3 + 9 = 16
+
+  reloadPaint();
+  drawSquiggles((Point[])subset(allPoints, 17 - 2, 10)); // 17 - 2 + 9 = 24 
+
+  reloadPaint();
+  drawSquiggles((Point[])subset(allPoints, 24 - 2, 10 + 6)); // 24 - 2 = 22
+  
   endRecord();
   noLoop();
 }
 
-void drawSquiggles(float[][] points) {
-  beginShape();
-  curveVertex(points[0][0], points[0][1]);
-  
-  for (int i = 0; i < points.length; i++){
-    curveVertex(points[i][0], points[i][1]);
+Point[] parsePointFile(String filename) {
+
+  String[] lines = loadStrings("curated/" + filename);
+
+  Point[] parsedPoints = new Point[0];
+
+  for (int i = 0; i < lines.length; i++) {
+
+    String line = lines[i];
+
+    String[] splitXY = split(lines[i], ", ");
+    String[] stringX = split(splitXY[0], ": ");
+    String[] stringY = split(splitXY[1], ": ");
+
+    float px = float(stringX[1]);
+    float py = float(stringY[1]);
+
+    Point parsedPoint = new Point(px, py);
+
+    parsedPoints = (Point[])append(parsedPoints, parsedPoint);
   }
-  
-  curveVertex(points[points.length-1][0], points[points.length-1][1]);
+
+  return parsedPoints;
+}
+
+void drawSquiggles(Point[] points) {
+  beginShape();
+
+  curveVertex(points[0].x, points[0].y);
+
+  for (int i = 0; i < points.length; i++) {
+    curveVertex(points[i].x, points[i].y);
+  }
+
   endShape();
 }
 
 void generateSquigglePoints() {
-  for (int i = 0; i < numSteps; i++) {
+  // to do: rework this function
+  for (int i = 0; i < maxSteps; i++) {
 
     float pNoise = noise(px/scale, py/scale); //0..1
 
@@ -144,19 +202,19 @@ void generateSquigglePoints() {
   }
 }
 
-void reloadPaint(int sign) {
+void reloadPaint() {
   // Circle where the extra pain is located
-  int paintX = centerX + canvasW/4 * sign;
-  int paintY = centerY + canvasH;
+  int paintX = centerX;
+  int paintY = centerY + height;
   // ellipse(a, b, c, d)  a/b are center, c/d are diameter
   noFill();
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < reloadPause; i++) {
     ellipse(paintX, paintY, 10, 10);
   }
 
   // Dab excess paint off
-  int dabX = centerX + canvasW/4 * sign;
-  int dabY = paintY - canvasH/4;
+  int dabX = centerX;
+  int dabY = paintY - height/4;
   point(dabX, dabY);
 }
 
@@ -189,4 +247,13 @@ void showField() {
 
 void mousePressed() {
   loop();
+}
+
+class Point {
+  float x, y;
+
+  Point(float x_, float y_) {
+    x = x_;
+    y = y_;
+  }
 }
