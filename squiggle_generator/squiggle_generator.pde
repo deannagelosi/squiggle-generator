@@ -1,8 +1,17 @@
 // Squiggle Generator
 // "Take a Dot for a Walk"
 
-// save the points and angles, export them to a text file
-// work on addative code later, using those saved points
+// 1) move the squiggle drawing code into a function
+// - (skip) function wont draw the squiggle, just return the points
+//   - function takes starting point, angle, , returns array of array of points
+//   - generates the full lines points
+
+// 2) make function that takes points, draws lines
+// 3) make function that decides what points to give, vs when to take reload breaks
+// 4) make function that loads in and parses the points text file
+//   - insert our parsed data into function from step 3
+// 5) update our reload function if needed
+// - (skip) clean up unused global variables
 
 import processing.svg.*;
 
@@ -15,12 +24,11 @@ float bigThreshold;
 int fileIndex;
 int series;
 int numSteps;
-int reload;
-int canvasH, canvasW;
 int centerX, centerY;
 int buffer;
 int squiggleLength;
 String[] points = {};
+String filename;
 
 void setup() {
   // w:1056, h:816; // 11"x8.5" at 96 DPI.
@@ -43,11 +51,14 @@ void setup() {
 }
 
 void draw() {
+  filename = "generated/squiggle-" + series + "-" + fileIndex + ".svg";
   noiseSeed(millis());
   background(255);
   //showField();
 
   squiggleLength = 0;
+  numBigTurns = 0;
+  numSmallTurns = 0;
 
   // Start in center, angled up
   centerX = width/2; // center
@@ -56,10 +67,11 @@ void draw() {
   py = centerY;
   angle = HALF_PI; // Up
 
-  numBigTurns = 0;
-  numSmallTurns = 0;
 
-  String filename = "generated/squiggle-" + series + "-" + fileIndex + ".svg";
+  
+}
+
+void generateSquigglePoints() {
   beginRecord(SVG, filename);
   noFill();
   stroke(0, 0, 0);
@@ -129,6 +141,22 @@ void draw() {
   } else {
     // good art
   }
+}
+
+void reloadPaint(int sign) {
+  // Circle where the extra pain is located
+  int paintX = centerX + canvasW/4 * sign;
+  int paintY = centerY + canvasH;
+  // ellipse(a, b, c, d)  a/b are center, c/d are diameter
+  noFill();
+  for (int i = 0; i < 3; i++) {
+    ellipse(paintX, paintY, 10, 10);
+  }
+
+  // Dab excess paint off
+  int dabX = centerX + canvasW/4 * sign;
+  int dabY = paintY - canvasH/4;
+  point(dabX, dabY);
 }
 
 boolean checkBounds(float px, float py) {
