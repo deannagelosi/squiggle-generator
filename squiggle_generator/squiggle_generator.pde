@@ -49,7 +49,7 @@ void setup() {
   series = (int)random(1000);
 
   // Tweak to change the look of the line
-  reloadPause = 30;
+  reloadPause = 3;
   maxSteps = 80;
   minStep = 20;
   maxStep = 100;
@@ -69,6 +69,9 @@ void draw() {
   squiggleLength = 0;
   numBigTurns = 0;
   numSmallTurns = 0;
+  
+  allPoints = parsePointFile("points-wacky-only.txt");
+  println(allPoints.length);
 
   beginRecord(SVG, filename);
   noFill();
@@ -80,10 +83,6 @@ void draw() {
   //py = centerY;
   //angle = HALF_PI; // Up
 
-  allPoints = parsePointFile("points-wacky-only.txt");
-  
-  println(allPoints.length);
-  
   //int sliceSize = 9;
   //int[] sliceStart = {
   //  sliceSize * 0,
@@ -207,7 +206,7 @@ void reloadPaint() {
   int paintX = centerX;
   int paintY = centerY + height;
   // ellipse(a, b, c, d)  a/b are center, c/d are diameter
-  noFill();
+  //noFill();
   for (int i = 0; i < reloadPause; i++) {
     ellipse(paintX, paintY, 10, 10);
   }
