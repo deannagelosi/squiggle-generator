@@ -1,40 +1,20 @@
 // Squiggle Generator
 // "Take a Dot for a Walk"
 
-// 1) move the squiggle drawing code into a function
-// - (skip) function wont draw the squiggle, just return the points
-//   - function takes starting point, angle, , returns array of array of points
-//   - generates the full lines points
-
-// 2) make function that takes points, draws lines
-// 3) make function that decides what points to give, vs when to take reload breaks
-// 4) make function that loads in and parses the points text file
-//   - insert our parsed data into function from step 3
-// 5) update our reload function if needed
-// - (skip) clean up unused global variables
-// 6) (skip) function that outputs points to text for parser
-//    - `points = append(points, "px: " + px + ", py: " + py);`
-//    - `saveStrings("generated/points-" + series + "-" + fileIndex + ".txt", points);`
-// calculate length based on points
-
 import processing.svg.*;
 
-float px, py, angle;
 float maxTurn;
 float scale;
-float minStep, maxStep;
-float numBigTurns, numSmallTurns;
 float bigThreshold;
-Point[] allPoints = new Point[0];
-int fileIndex;
-int series;
-int maxSteps;
+int minSteps, maxSteps;
+int minDistance, maxDistance;
+int minLength, maxLength;
 int centerX, centerY;
 int buffer;
-int squiggleLength;
-int reloadPause;
-String[] points = {};
-String filename;
+int reloadAmount;
+int seed;
+boolean showField;
+Point[] squigglePoints;
 
 void setup() {
   // w:1056, h:816; // 11"x8.5" at 96 DPI.
@@ -45,176 +25,128 @@ void setup() {
 
   centerX = width/2; // center
   centerY = height/2; // center
-  fileIndex = 1;
-  series = (int)random(1000);
 
   // Tweak to change the look of the line
-  reloadPause = 3;
+  reloadAmount = 3; // amount of paint collected for additive
+  minSteps = 20; // number of points a line could have
   maxSteps = 80;
-  minStep = 20;
-  maxStep = 100;
+  minDistance = 20; // how far a point can be from the previous point
+  maxDistance = 100;
+  minLength = 1500;
+  maxLength = 3000;
   buffer = 35;
   scale = 100.0; // position on the Perlin noise field
-  maxTurn = QUARTER_PI + PI/8; // Don't turn faster than this (Quarter = circles, Half = squares, PI = starbursts)
+  maxTurn = QUARTER_PI + PI/8; // Max turn speed (QUARTER_PI = circles, HALF_PI = squares, PI = starbursts)
   bigThreshold = 0.80; // Higher percent, more loops
+  seed = 1; // increment on each attempt
+  showField = false;
 }
 
 void draw() {
-  filename = "generated/squiggle-" + series + "-" + fileIndex + ".svg";
-  noiseSeed(millis());
-  background(255);
-  //showField();
-
-  // Reset Bad Art Check params
-  squiggleLength = 0;
-  numBigTurns = 0;
-  numSmallTurns = 0;
   
-  allPoints = parsePointFile("points-wacky-only.txt");
-  println(allPoints.length);
-
-  beginRecord(SVG, filename);
-  noFill();
-  stroke(0, 0, 0);
-  strokeWeight(2);
-
-  // Start in center, angled up
-  //px = centerX;
-  //py = centerY;
-  //angle = HALF_PI; // Up
-
-  //int sliceSize = 9;
-  //int[] sliceStart = {
-  //  sliceSize * 0,
-  //  sliceSize * 1,
-  //  sliceSize * 2,
-  //  sliceSize * 3
-  //};
-
-  //drawSquiggles(allPoints);
-
-  reloadPaint();
-  drawSquiggles((Point[])subset(allPoints, 0, 10)); // 0 + 10 = 10
-
-  reloadPaint();
-  drawSquiggles((Point[])subset(allPoints, 10 - 3, 10)); // 10 - 3 + 9 = 16
-
-  reloadPaint();
-  drawSquiggles((Point[])subset(allPoints, 17 - 2, 10)); // 17 - 2 + 9 = 24 
-
-  reloadPaint();
-  drawSquiggles((Point[])subset(allPoints, 24 - 2, 10 + 6)); // 24 - 2 = 22
   
-  endRecord();
+  squigglePoints = generateSquigglePoints();
+  drawSquiggle(squigglePoints);
+
+  // reloadPaint();
+  // drawSquiggle((Point[])subset(allPoints, 0, 10)); // 0 + 10 = 10
+  // reloadPaint();
+  // drawSquiggle((Point[])subset(allPoints, 10 - 3, 10)); // 10 - 3 + 9 = 16
+  // reloadPaint();
+  // drawSquiggle((Point[])subset(allPoints, 17 - 2, 10)); // 17 - 2 + 9 = 24 
+  // reloadPaint();
+  // drawSquiggle((Point[])subset(allPoints, 24 - 2, 10 + 6)); // 24 - 2 = 22
+  
   noLoop();
 }
 
-Point[] parsePointFile(String filename) {
+Point[] generateSquigglePoints() {
+  // generate array of Points
 
-  String[] lines = loadStrings("curated/" + filename);
+  Point[] pointsArray = new Point[0];
 
-  Point[] parsedPoints = new Point[0];
+  boolean goodArt = false; 
 
-  for (int i = 0; i < lines.length; i++) {
+  while (goodArt == false) { // loop until good art is made
+    // Set the Perlin noise seed
+    noiseSeed(seed);
+    pointsArray = new Point[0]; // blank out points array
 
-    String line = lines[i];
+    // Start in center, angled up
+    float px = centerX;
+    float py = centerY;
+    float angle = HALF_PI; // Up
 
-    String[] splitXY = split(lines[i], ", ");
-    String[] stringX = split(splitXY[0], ": ");
-    String[] stringY = split(splitXY[1], ": ");
+    // Reset Bad Art Check params
+    int squiggleLength = 0;
+    int numBigTurns = 0;
+    int numSmallTurns = 0;
 
-    float px = float(stringX[1]);
-    float py = float(stringY[1]);
+    for (int i = 0; i < maxSteps; i++) {
+      // Sample Perlin at current point
+      float pNoise = noise(px/scale, py/scale); //0..1
+      // Select angle and distance to next point
+      float deltaAngle = map(pNoise, 0, 1, -TWO_PI, TWO_PI);
+      float distance = map(pNoise, 0, 1, minDistance, maxDistance);
 
-    Point parsedPoint = new Point(px, py);
-
-    parsedPoints = (Point[])append(parsedPoints, parsedPoint);
-  }
-
-  return parsedPoints;
-}
-
-void drawSquiggles(Point[] points) {
-  beginShape();
-
-  curveVertex(points[0].x, points[0].y);
-
-  for (int i = 0; i < points.length; i++) {
-    curveVertex(points[i].x, points[i].y);
-  }
-
-  endShape();
-}
-
-void generateSquigglePoints() {
-  // to do: rework this function
-  for (int i = 0; i < maxSteps; i++) {
-
-    float pNoise = noise(px/scale, py/scale); //0..1
-
-    float deltaAngle = map(pNoise, 0, 1, -TWO_PI, TWO_PI);
-    float step = map(pNoise, 0, 1, minStep, maxStep);
-
-    // If turn is too big, turn maxTurn instead
-    // Count number of maxed out turns vs. allowed turns
-    if (abs(deltaAngle) > maxTurn) {
-      angle += maxTurn;
-      numBigTurns++;
-    } else {
-      angle += deltaAngle;
-      numSmallTurns++;
-    }
-
-    // Calculate new point
-    px += step * cos(angle);
-    py += step * sin(angle);
-
-    for (int k = 0; k < 50; k++) {
-      if (checkBounds(px, py)) {
-        break;
+      // If turn is too big, use maxTurn instead
+      if (abs(deltaAngle) > maxTurn) {
+        angle += maxTurn;
+        numBigTurns++; // count # of turn types for bad art analysis
       } else {
-        // Out of bounds. Attempt to fix the coords
-        float nudgeAngle = random(PI/32, PI);
-        angle = -1 * angle + nudgeAngle;
-        px += step * cos(angle);
-        py += step * sin(angle);
+        angle += deltaAngle;
+        numSmallTurns++;
+      }
+
+      // Calculate next point coords
+      px += distance * cos(angle);
+      py += distance * sin(angle);
+
+      // If out of bounds, attempt to turn away from the border
+      for (int k = 0; k < 50; k++) {
+        if (checkBounds(px, py)) {
+          // No longer out of bounds. Stop nudging.
+          break; 
+        } else {
+          // Out of bounds. Attempt to fix the coords
+          // Sample new noise with k as offest
+          float newNoise = noise((px+(k*10))/scale, py/scale);
+          // Nudge the direction by a new angle
+          float nudgeAngle = map(newNoise, 0, 1, PI/32, PI);
+          angle = -1 * angle + nudgeAngle;
+          
+          // Calc new next point with the nudge
+          px += distance * cos(angle);
+          py += distance * sin(angle);
+        }
+      }
+
+      if (checkBounds(px, py)) {
+        // Succesfully nudged back into bounds within k loops.
+        // Add point and track current line length
+        Point newPoint = new Point(px, py);
+        pointsArray = addPoint(pointsArray, newPoint);
+        squiggleLength += distance;
+        // Carry on with loop and add more points.
+      } else {
+        // Unable to fix out-of-bounds within k loops. End the line.
+        break;
       }
     }
 
-    if (checkBounds(px, py)) {
-      squiggleLength += step;
+    // Check if all the points made a good line
+    float percentBig = numBigTurns / (numBigTurns + numSmallTurns);
+    if (percentBig > bigThreshold || squiggleLength < minLength || squiggleLength > maxLength) {
+      // Bad art, try again with the next seed
+      goodArt = false;
+      seed++;
     } else {
-      // Unable to fix out of bounds in number of loops, end line
-      break;
+      // good art, end the while loop
+      goodArt = true;
     }
   }
-
-  // If good result, increment the filename counter to protect from overwrite
-  // If bad result, make another attempt and then overwrite the bad file
-  float percentBig = numBigTurns / (numBigTurns + numSmallTurns);
-  if (percentBig > bigThreshold || squiggleLength < 1500 || squiggleLength > 3000) {
-    println("bad art, trying again...");
-    //loop(); to do:  new way to try again
-  } else {
-    // good art
-    // to do: return the points 2D array that you have been creating
-  }
-}
-
-void reloadPaint() {
-  // Circle where the extra pain is located
-  int paintX = centerX;
-  int paintY = centerY + height;
-  // ellipse(a, b, c, d)  a/b are center, c/d are diameter
-  //noFill();
-  for (int i = 0; i < reloadPause; i++) {
-    ellipse(paintX, paintY, 10, 10);
-  }
-
-  // Dab excess paint off
-  int dabX = centerX;
-  int dabY = paintY - height/4;
-  point(dabX, dabY);
+  
+  return pointsArray;
 }
 
 boolean checkBounds(float px, float py) {
@@ -225,11 +157,35 @@ boolean checkBounds(float px, float py) {
   }
 }
 
-void keyPressed() {
-  if (key == 's') {
-    fileIndex++;
+void drawSquiggle(Point[] points) {
+  background(255);
+
+  if (showField == true) {
+    showField();
   }
+  
+  noFill();
+  stroke(0, 0, 0);
+  strokeWeight(2);
+
+  beginShape();
+  curveVertex(points[0].x, points[0].y);
+  for (int i = 0; i < points.length; i++) {
+    curveVertex(points[i].x, points[i].y);
+  }
+  endShape();
 }
+
+// void reloadPaint() {
+//   // Additive mode, draw circles where extra pain is located
+//   int paintX = centerX;
+//   int paintY = centerY + height;
+//   // ellipse(a, b, c, d)  a/b are center, c/d are diameter
+//   //noFill();
+//   for (int i = 0; i < reloadAmount; i++) {
+//     ellipse(paintX, paintY, 10, 10);
+//   }
+// }
 
 void showField() {
   noStroke();
@@ -244,15 +200,40 @@ void showField() {
   }
 }
 
+void keyPressed() {
+  if (key == 's') {
+    String filename = "generated/squiggle-seed" + seed + ".svg";
+    beginRecord(SVG, filename);
+    drawSquiggle(squigglePoints);
+    endRecord();
+  } else if (key == 'f') {
+    // Toggle the show field boolean
+    showField = !showField;
+    loop();
+  }
+}
+
 void mousePressed() {
+  // try next seed
+  seed++;
   loop();
 }
 
 class Point {
   float x, y;
-
+  // constructor
   Point(float x_, float y_) {
     x = x_;
     y = y_;
   }
+}
+
+Point[] addPoint(Point[] points, Point newPoint) {
+  Point[] modifiedPoints = new Point[points.length + 1];
+  for (int i = 0; i < points.length; i++) {
+    modifiedPoints[i] = points[i];
+  }
+  modifiedPoints[points.length] = newPoint;
+
+  return modifiedPoints;
 }
